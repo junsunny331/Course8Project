@@ -1,0 +1,73 @@
+---
+title: "Project_Week4"
+author: "Jun Li"
+date: "March 17, 2017"
+output: html_document
+---
+
+Background
+This project is trying to predict the manner in which people do particular activities. The target variable is "classe" variable in the training set.Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). Read more: http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises#ixzz4bcYUO8D9
+
+Data Pull
+```{r}
+library("caret")
+##setwd("N:/Jun/Coursera_Course/Course8")
+##fileURL<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+##download.file(fileURL,destfile = "./training.csv")
+
+##fileURL<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+##download.file(fileURL,destfile = "./testing.csv")
+
+training<-read.csv("./training.csv")
+##summary(training)
+##head(training)
+summary(training$classe)
+
+testing<-read.csv("./testing.csv")
+##summary(testing)
+##head(testing)
+summary(testing$classe)
+```
+
+Data Cleaning:
+Original data has a lot of variables that don't have meaningful information, e.g. more than 90% is missing, or having a low variance (just one unique value), therefore this step is trying to clean up the data and remove those variables. It helps the machine learning algorithm to run faster in r.
+
+```{r}
+##Remove variables with more than 90% missing
+count_NAs<-sapply(training,function(x) sum(is.na(x)))
+rm_index<-which(count_NAs>nrow(training)*0.9)
+training<-training[,-rm_index]
+
+##Remove variables with low variance
+nzv<-nearZeroVar(training,saveMetrics = TRUE)
+training<-training[,nzv$nzv==FALSE]
+
+##Remove first 5 variables since they don't make sense in predicting classe
+training<-training[,-c(1,2,3,4,5)]
+```
+
+Model Building:
+```{r}
+##Create the training and testing dataset
+tr<-createDataPartition(training$classe,p=0.7,list=FALSE)
+train_data<-training[tr,]
+test_data<-training[-tr,]
+
+##Define cross validation by using training control 
+train_control<-trainControl(method="cv",number=2)
+
+##Set seed
+set.seed(62433)
+
+##The out of sample rate is 0.996 by using random forest method
+mod1<-train(classe~., data=train_data, trControl=train_control,method='rf')
+t1<-predict(mod1,test_data)
+sum(t1==test_data$classe)/nrow(test_data)
+
+##The out of sample rate is 0.9876 by using gradient boosting method
+mod2<-train(classe~., data=train_data, trControl=train_control,method='gbm')
+t2<-predict(mod2,test_data)
+sum(t2==test_data$classe)/nrow(test_data)
+```
+
+Conclusions: Recommend using random forest model to score the test data
